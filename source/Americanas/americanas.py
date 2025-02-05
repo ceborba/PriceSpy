@@ -106,7 +106,7 @@ async def process_product(conn, product, seen_products):
             cashback = None
 
         if price is None:
-            logging.warning(f"Preço não encontrado para o produto {product_id} ({name})")
+            # logging.warning(f"Preço não encontrado para o produto {product_id} ({name})")
             return False
 
         with conn:
@@ -223,7 +223,26 @@ async def monitor_americanas():
             "/categoria/beleza-e-perfumaria/perfumes/f/loja-Americanas",
             "/categoria/games/jogos-para-pc-e-acessorios/headset-gamer/f/loja-Webcontinental+Marketplace/loja-OFICINA+DOS+BITS/loja-CLICK+COMPROU/loja-Carrefour.com/loja-Obabox+Oficial/loja-Login+Informática/loja-CASA+&+VIDEO/loja-Americanas/loja-e-Store/loja-INPOWER/loja-MIRANDA/loja-IBYTE/loja-Concordia+Informática/loja-Alligator+Shop/loja-Primetek/loja-BITS+&+BYTES/loja-Mixtou/loja-Gigantec/loja-HD+ELETRÔNICOS+/loja-MMPLACE/loja-WEBCONTINENTAL/loja-ELG+Store",
             "/categoria/celulares-e-smartphones/g/tipo-de-produto-fone+de+ouvido",
-            "/categoria/celulares-e-smartphones/f/loja-Americanas/loja-Motorola+Oficial/loja-Trocafone/loja-Webcontinental+Marketplace/loja-Carrefour.com/loja-Loja+Samsung+Oficial/loja-WEBCONTINENTAL/loja-BOM+&+BARATO/loja-Gshield/loja-Trip+Info/loja-MMSANTOS/loja-MMPLACE/loja-ALLMIXSHOP+?viewMode=list"
+            "/categoria/celulares-e-smartphones/f/loja-Americanas/loja-Motorola+Oficial/loja-Trocafone/loja-Webcontinental+Marketplace/loja-Carrefour.com/loja-Loja+Samsung+Oficial/loja-WEBCONTINENTAL/loja-BOM+&+BARATO/loja-Gshield/loja-Trip+Info/loja-MMSANTOS/loja-MMPLACE/loja-ALLMIXSHOP+?viewMode=list",
+            "/categoria/celulares-e-smartphones/f/loja-Americanas/loja-Motorola+Oficial/loja-Trocafone/loja-Carrefour.com/loja-Loja+Samsung+Oficial/loja-BOM+%26+BARATO/loja-WEBCONTINENTAL/loja-Gshield/loja-MMPLACE?viewMode=list",
+            '/categoria/celulares-e-smartphones/f/loja-Americanas/loja-Motorola+Oficial/loja-Trocafone/loja-Carrefour.com/loja-Loja+Samsung+Oficial/loja-BOM+%26+BARATO/loja-WEBCONTINENTAL/loja-Gshield/loja-MMPLACE/loja-DISTRIBUIDORA+WE/loja-Golden+Vision+Distribuidora+/loja-Trip+Info?viewMode=list',
+            '/categoria/celulares-e-smartphones/smartphone/f/loja-Webcontinental+Marketplace?viewMode=list',
+            '/categoria/celulares-e-smartphones/smartwatch-e-smartband/f/loja-Webcontinental+Marketplace?viewMode=list',
+            '/categoria/celulares-e-smartphones/pecas-para-celular/f/loja-Webcontinental+Marketplace?viewMode=list',
+            '/categoria/celulares-e-smartphones/acessorios-para-celular/capa-para-celular/f/loja-Webcontinental+Marketplace?viewMode=list',
+            '/categoria/celulares-e-smartphones/acessorios-para-celular/pelicula-para-celular/f/loja-Webcontinental+Marketplace?viewMode=list',
+            '/categoria/celulares-e-smartphones/acessorios-para-celular/fone-para-celular/f/loja-Webcontinental+Marketplace?viewMode=list',
+            '/categoria/celulares-e-smartphones/acessorios-para-celular/suporte-para-celular/f/loja-Webcontinental+Marketplace?viewMode=list',
+            '/categoria/celulares-e-smartphones/smartphone/f/loja-Webco+Prime?viewMode=list',
+            '/categoria/celulares-e-smartphones/smartwatch-e-smartband/f/loja-Webco+Prime?viewMode=list',
+            '/categoria/celulares-e-smartphones/pecas-para-celular/f/loja-Webco+Prime?viewMode=list',
+            '/categoria/celulares-e-smartphones/acessorios-para-celular/pelicula-para-celular/f/loja-Webco+Prime?viewMode=list',
+            '/categoria/celulares-e-smartphones/acessorios-para-celular/capa-para-celular/f/loja-Webco+Prime?viewMode=list',
+            '/celulares-e-smartphones/acessorios-para-celular/fone-para-celular/f/loja-Webco+Prime?viewMode=list',
+            '/celulares-e-smartphones/acessorios-para-celular/bracadeira-para-celular/f/loja-Webco+Prime?viewMode=list',
+            '/categoria/tv-e-home-theater/f/loja-Americanas/loja-Trip+Info/loja-MMSANTOS/loja-VCB+Shop/loja-BOM+%26+BARATO/loja-JBL+Oficial/loja-MMPLACE/loja-Comprebel/loja-MIRANDA/loja-Carrefour.com/loja-MELHOR+PARA+VOC%C3%8A/loja-Lojas+taQi/loja-Lojas+Benoit/loja-Loja+Samsung+Oficial/loja-CAVUCA/loja-WEBCONTINENTAL/loja-BITS+%26+BYTES/loja-Madeira+Madeira/loja-PRIME/loja-Pasmeyt+Distribuidora/loja-Nilsat+Distribuidora/loja-Eletroking+Distribuidor/loja-eFácil',
+            '/categoria/tv-e-home-theater/f/loja-Webcontinental+Marketplace?chave=pfm_home_tv_menu&viewMode=list',
+            '/categoria/tv-e-home-theater/f/loja-Webco+Prime?chave=pfm_home_tv_menu&viewMode=list'
         ]
 
         try:

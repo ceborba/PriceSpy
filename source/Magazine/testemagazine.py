@@ -14,7 +14,7 @@ async def make_post_request():
     }
     
     params = {
-        "page": 2,
+        "page": 1,
         "path0": "monitores",
         "path1": "informatica",
         "path3": "in",
@@ -23,38 +23,16 @@ async def make_post_request():
 
     async with aiohttp.ClientSession() as session:
         async with session.get(url, headers=headers, params=params) as response:
-            if response.status == 200:
-                data = await response.json()
-                return data
-            else:
-                return {"error": f"Erro na requisição: {response.status}", "details": await response.text()}
-
-def extract_product_info(data):
-    products = data.get('pageProps', {}).get('data', {}).get('search', {}).get('products', [])
-
-    extracted_data = []
-    for product in products:
-        id = product.get('path')
-        title = product.get('title')
-
-        # Extraindo o preço correto a partir da estrutura fornecida
-        price_info = product.get('price', {})
-        price = price_info.get('bestPrice')
-
-        extracted_data.append({
-            "Link": f"https://www.magazineluiza.com.br/{id}",
-            "Título": title,
-            "Melhor Preço": f"R$ {price}" if price else "Não disponível"
-        })
-    return extracted_data
+            print(f"Status Code: {response.status}")  # Exibe o status code
+            
+            data = await response.text()  # Obtém a resposta como string
+            return data[:500]  # Retorna apenas os primeiros 500 caracteres
 
 # Função para rodar o código assíncrono
 async def run_async_code():
     data = await make_post_request()
-    if "error" in data:
-        return data
-    return extract_product_info(data)
+    return data
 
 # Executar o código
 result = asyncio.run(run_async_code())
-print(json.dumps(result, ensure_ascii=False, indent=2))
+print(result)

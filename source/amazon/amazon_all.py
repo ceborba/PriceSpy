@@ -1,5 +1,5 @@
 import logging
-import httpx
+import tls_client
 import ssl
 import time
 import asyncio
@@ -32,56 +32,63 @@ user_agents = [
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
 ]
 rh_params = [
-'n:16364923011',
-# 'n:16364922011',
-# 'n:16364766011',
-# 'n:16339926011,n:16364748011,n:16364843011,p_n_condition-type:13862762011',
-# 'n:16339926011,n:16364748011,n:16364768011,p_n_condition-type:13862762011',
-# 'n:16339926011,n:16364748011,n:16364777011,n:16364913011,p_n_condition-type:13862762011',
-# 'n:16339926011,n:16364748011,n:16364777011,n:16364980011,p_n_condition-type:13862762011',
-# 'n:16339926011,n:16364750011,n:16364752011,n:16364778011,n:16364922011,p_n_condition-type:13862762011',
-# 'n:16339926011,n:16364750011,n:16364752011,n:16364778011,n:16364923011,p_n_condition-type:13862762011',
-# 'n:16364917011,p_n_condition-type:13862762011,p_n_feature_nine_browse-bin:23680019011',
-# 'n:16339926011,n:16364748011,n:16364777011,n:16364919011,p_n_condition-type:13862762011',
-# 'n:16339926011,n:16364751011,n:16364820011,p_n_condition-type:13862762011',
-# 'n:16339926011,n:16364751011,n:16364819011,p_n_condition-type:13862762011',
-# 'n:16339926011,n:16364757011,n:16364834011,p_n_condition-type:13862762011',
-# 'n:16339926011,n:16364752011,n:16364778011,n:16364922011,p_n_condition-type:13862762011',
-# 'n:16339926011,n:16364752011,n:16364778011,n:16364923011,p_n_condition-type:13862762011',
-# 'n:16339926011,n:16364752011,n:17028669011,p_n_condition-type:13862762011',
-# 'n:16339926011,n:16364756011,p_n_condition-type:13862762011',
-# 'n:16339926011,n:16364755011,p_n_condition-type:13862762011',
-# 'n:16339926011,n:16364750011,n:16364817011,n:16364935011,p_n_condition-type:13862762011',
-# 'n:16339926011,n:16364750011,n:16364817011,n:16364936011,p_n_condition-type:13862762011',
-# 'n:16339926011,n:16364750011,n:16364803011,p_n_condition-type:13862762011',
-# 'n:16339926011,n:16364750011,n:16364806011,p_n_condition-type:13862762011',
-# 'n:16339926011,n:16364750011,n:16364807011,p_n_condition-type:13862762011',
-# 'n:16339926011,n:16364750011,n:16364781011,p_n_condition-type:13862762011',
-# 'n:16339926011,n:16364750011,n:16364809011,p_n_condition-type:13862762011',
-# 'n:16339926011,n:16364750011,n:16364811011,p_n_condition-type:13862762011',
-# 'n:16339926011,n:16364750011,n:16364815011,p_n_condition-type:13862762011',
-# 'n:16209062011,n:16243793011,n:16243872011,n:16244069011,p_n_condition-type:13862762011',
-# 'n:16209062011,n:16243793011,n:16243803011,n:16243888011,n:16244083011,p_n_condition-type:13862762011',
-# 'n:16209062011,n:16243793011,n:16243803011,n:16243888011,n:21213411011,p_n_condition-type:13862762011',
-# 'n:16209062011,n:16243793011,n:16243803011,n:16243888011,n:21213406011,n:16244311011,p_n_condition-type:13862762011',
-# 'n:16209062011,n:16243803011,n:16243890011,p_n_condition-type:13862762011',
-# 'n:16209062011,n:16243803011,n:16243897011,p_n_condition-type:13862762011',
-# 'n:16209062011,n:16243800011,p_n_condition-type:13862762011',
-# 'n:16209062011,n:16364762011,p_n_condition-type:13862762011',
-# 'n:16209062011,n:16243804011,p_n_condition-type:13862762011',
-# 'n:16209062011,n:16243809011,n:16243811011,p_n_condition-type:13862762011',
-# 'n:16209062011,n:16243809011,n:16243814011,p_n_condition-type:13862762011',
-# 'n:16209062011,n:16243809011,n:16243820011,p_n_condition-type:13862762011',
-# 'n:16209062011,n:16243809011,n:16243822011,p_n_condition-type:13862762011',
-# 'n:16209062011,n:16243809011,n:16243930011,p_n_condition-type:13862762011',
-# 'n:16209062011,n:16243802011,n:16244295011,p_n_condition-type:13862762011',
-# 'n:16209062011,n:16243802011,n:21213411011,p_n_condition-type:13862762011',
-# 'n:16209062011,n:16243802011,n:16243897011,p_n_condition-type:13862762011',
-# 'n:16209062011,n:16243802011,n:16244073011,p_n_condition-type:13862762011',
-# 'n:16209062011,n:24035344011,n:16244120011,n:99528904011,p_n_condition-type:13862762011',
-# 'n:16209062011,n:24035344011,n:16244120011,p_n_condition-type:13862762011',
-# 'n:16209062011,n:24035345011,n:16243853011,p_n_condition-type:13862762011',
-# 'n:16209062011,n:24035345011,n:16243854011,p_n_condition-type:13862762011'
+    'n:16339926011,p_n_condition-type:13862762011,p_6:A1ZZFT5FULY4LN',
+    'n:16209062011,p_n_condition-type:13862762011,p_6:A1ZZFT5FULY4LN',
+    'n:16209062011,p_n_condition-type:13862762011,p_6:A1ZZFT5FULY4LN,p_123:110955',
+    'n:16243822011,p_6:A1ZZFT5FULY4LN,p_n_condition-type:13862762011',
+    'n:16209062011,p_n_condition-type:13862762011,p_6:A1ZZFT5FULY4LN',
+    'n:7791985011',
+    'n:16364923011',
+    'n:16364922011',
+    'n:16364766011',
+    'n:16339926011,n:16364748011,n:16364843011,p_n_condition-type:13862762011',
+    'n:16339926011,n:16364748011,n:16364768011,p_n_condition-type:13862762011',
+    'n:16339926011,n:16364748011,n:16364777011,n:16364913011,p_n_condition-type:13862762011',
+    'n:16339926011,n:16364748011,n:16364777011,n:16364980011,p_n_condition-type:13862762011',
+    'n:16339926011,n:16364750011,n:16364752011,n:16364778011,n:16364922011,p_n_condition-type:13862762011',
+    'n:16339926011,n:16364750011,n:16364752011,n:16364778011,n:16364923011,p_n_condition-type:13862762011',
+    'n:16364917011,p_n_condition-type:13862762011,p_n_feature_nine_browse-bin:23680019011',
+    'n:16339926011,n:16364748011,n:16364777011,n:16364919011,p_n_condition-type:13862762011',
+    'n:16339926011,n:16364751011,n:16364820011,p_n_condition-type:13862762011',
+    'n:16339926011,n:16364751011,n:16364819011,p_n_condition-type:13862762011',
+    'n:16339926011,n:16364757011,n:16364834011,p_n_condition-type:13862762011',
+    'n:16339926011,n:16364752011,n:16364778011,n:16364922011,p_n_condition-type:13862762011',
+    'n:16339926011,n:16364752011,n:16364778011,n:16364923011,p_n_condition-type:13862762011',
+    'n:16339926011,n:16364752011,n:17028669011,p_n_condition-type:13862762011',
+    'n:16339926011,n:16364756011,p_n_condition-type:13862762011',
+    'n:16339926011,n:16364755011,p_n_condition-type:13862762011',
+    'n:16339926011,n:16364750011,n:16364817011,n:16364935011,p_n_condition-type:13862762011',
+    'n:16339926011,n:16364750011,n:16364817011,n:16364936011,p_n_condition-type:13862762011',
+    'n:16339926011,n:16364750011,n:16364803011,p_n_condition-type:13862762011',
+    'n:16339926011,n:16364750011,n:16364806011,p_n_condition-type:13862762011',
+    'n:16339926011,n:16364750011,n:16364807011,p_n_condition-type:13862762011',
+    'n:16339926011,n:16364750011,n:16364781011,p_n_condition-type:13862762011',
+    'n:16339926011,n:16364750011,n:16364809011,p_n_condition-type:13862762011',
+    'n:16339926011,n:16364750011,n:16364811011,p_n_condition-type:13862762011',
+    'n:16339926011,n:16364750011,n:16364815011,p_n_condition-type:13862762011',
+    'n:16209062011,n:16243793011,n:16243872011,n:16244069011,p_n_condition-type:13862762011',
+    'n:16209062011,n:16243793011,n:16243803011,n:16243888011,n:16244083011,p_n_condition-type:13862762011',
+    'n:16209062011,n:16243793011,n:16243803011,n:16243888011,n:21213411011,p_n_condition-type:13862762011',
+    'n:16209062011,n:16243793011,n:16243803011,n:16243888011,n:21213406011,n:16244311011,p_n_condition-type:13862762011',
+    'n:16209062011,n:16243803011,n:16243890011,p_n_condition-type:13862762011',
+    'n:16209062011,n:16243803011,n:16243897011,p_n_condition-type:13862762011',
+    'n:16209062011,n:16243800011,p_n_condition-type:13862762011',
+    'n:16209062011,n:16364762011,p_n_condition-type:13862762011',
+    'n:16209062011,n:16243804011,p_n_condition-type:13862762011',
+    'n:16209062011,n:16243809011,n:16243811011,p_n_condition-type:13862762011',
+    'n:16209062011,n:16243809011,n:16243814011,p_n_condition-type:13862762011',
+    'n:16209062011,n:16243809011,n:16243820011,p_n_condition-type:13862762011',
+    'n:16209062011,n:16243809011,n:16243822011,p_n_condition-type:13862762011',
+    'n:16209062011,n:16243809011,n:16243930011,p_n_condition-type:13862762011',
+    'n:16209062011,n:16243802011,n:16244295011,p_n_condition-type:13862762011',
+    'n:16209062011,n:16243802011,n:21213411011,p_n_condition-type:13862762011',
+    'n:16209062011,n:16243802011,n:16243897011,p_n_condition-type:13862762011',
+    'n:16209062011,n:16243802011,n:16244073011,p_n_condition-type:13862762011',
+    'n:16209062011,n:24035344011,n:16244120011,n:99528904011,p_n_condition-type:13862762011',
+    'n:16209062011,n:24035344011,n:16244120011,p_n_condition-type:13862762011',
+    'n:16209062011,n:24035345011,n:16243853011,p_n_condition-type:13862762011',
+    'n:16209062011,n:24035345011,n:16243854011,p_n_condition-type:13862762011'
+
 ]
 
 # Headers para a requisição
@@ -127,6 +134,7 @@ def create_database():
             title TEXT,
             price TEXT,
             url TEXT,
+            last_notification_date DATETIME,
             UNIQUE(title, price)
         )
     ''')
@@ -145,10 +153,10 @@ def create_database():
     conn.close()
 
 # Função para realizar requisição
-async def fetch_data(page, rh, max_retries=10, retry_delay=1):
+async def fetch_data(page, rh):
     params = {
         'fs': 'true',
-        'i': 'computers',
+        'i': 'games',
         'page': f'{page}',
         'qid': int(time.time()),
         'ref': f'sr_pg_{page}',
@@ -158,33 +166,32 @@ async def fetch_data(page, rh, max_retries=10, retry_delay=1):
     }
     attempts = 0
 
-    while attempts < max_retries:
-
+    while True:
         user_agent = user_agents[attempts % len(user_agents)]
         headers = {"User-Agent": user_agent}
 
         try:
-            async with httpx.AsyncClient(verify=sslcontext, timeout=30.0) as client:
-                response = await client.get(
-                    'https://www.amazon.com.br/s',
-                    headers=headers,
-                    params=params,
-                    follow_redirects=True
-                )
-                if response.status_code == 200:
-                    return response.text
-                else:
-                    logging.warning(f"Status code {response.status_code} recebido. Tentativa {attempts + 1} de {max_retries}.")
+            session = tls_client.Session(
+                client_identifier="chrome_110",
+                random_tls_extension_order=True
+            )
+            response = await asyncio.to_thread(
+                session.get,
+                'https://www.amazon.com.br/s',
+                headers=headers,
+                params=params,
+                allow_redirects=True
+            )
+            if response.status_code == 200:
+                return response.text
+            else:
+                logging.warning(f"Status code {response.status_code} recebido. Tentativa {attempts + 1}. Tentando novamente.")
         except Exception as e:
             logging.error(f"Erro ao buscar dados (tentativa {attempts + 1}): {e}")
 
         attempts += 1
-        if attempts < max_retries:
-            logging.info(f"Aguardando {retry_delay} segundos antes de tentar novamente...")
-            await asyncio.sleep(retry_delay)
+        await asyncio.sleep(1)  # Pausa de 5 segundos entre tentativas
 
-    logging.error("Número máximo de tentativas alcançado. Falha ao obter dados.")
-    return None
 
 # Função para extrair dados
 def extract_product_data(html_content):
@@ -207,48 +214,62 @@ async def compare_and_update_prices(product_id, title, old_price, new_price, url
     try:
         def clean_price(price):
             if price == 'N/A' or not price:
-                return None
-            return float(price.replace('R$', '').replace('.', '').replace(',', '.').strip())
+                return 0
+            try:
+                return float(price.replace('R$', '').replace('.', '').replace(',', '.').strip())
+            except ValueError:
+                logging.error(f"Erro ao converter preço '{price}' para float")
+                return 0
 
         old_price_float = clean_price(old_price)
         new_price_float = clean_price(new_price)
         
-        discount_percentage = ((old_price_float - new_price_float) / old_price_float) * 100
+
+        if old_price_float == 0 and new_price_float > 0:
+            # Produto novo ou preço anterior desconhecido
+            discount_percentage = 0
+            # Lógica para notificar novo produto ou preço atualizado
+        elif old_price_float > 0 and new_price_float > 0:
+            discount_percentage = ((old_price_float - new_price_float) / old_price_float) * 100
+            # Resto da lógica de comparação e notificação
+        else:
+            logging.warning(f"Preços inválidos para o produto '{title}': old_price={old_price}, new_price={new_price}")
+            return
+
         
+        # Verificar se há desconto significativo
         if new_price_float < old_price_float and discount_percentage >= 2:
             # Atualizar o preço na tabela categories
-            cursor.execute('UPDATE categories SET price = ? WHERE id = ?', (new_price, id))
+            cursor.execute('UPDATE categories SET price = ? WHERE id = ?', (new_price, product_id))
 
-            # Verificar quantos preços históricos existem para este produto
-            cursor.execute('SELECT COUNT(*) FROM historic_price WHERE product_id = ?', (product_id,))
-            count = cursor.fetchone()[0]
+            # Verificar a última data de notificação
+            cursor.execute('SELECT last_notification_date FROM categories WHERE id = ?', (product_id,))
+            last_notification_date = cursor.fetchone()[0]
+            current_date = datetime.now()
+
+            # Enviar notificação apenas se não foi enviada recentemente
+            if last_notification_date is None or (
+                current_date - datetime.strptime(
+                    last_notification_date, 
+                    '%Y-%m-%dT%H:%M:%S.%f' if 'T' in last_notification_date else '%Y-%m-%d %H:%M:%S.%f'
+                )
+            ).days >= 1:
+                await send_discord_notification(title, old_price_float, new_price_float, url, discount_percentage)
+                cursor.execute('UPDATE categories SET last_notification_date = ? WHERE id = ?', (current_date, product_id))
+
             
-            if count < 4:
-                # Adicionar novo preço ao histórico
-                cursor.execute('INSERT INTO historic_price (product_id, title, url, price, date) VALUES (?, ?, ?, ?, ?)',
-                               (product_id, title, url, new_price, datetime.now()))
-            else:
-                # Encontrar o maior preço no histórico
-                cursor.execute('SELECT id, price FROM historic_price WHERE product_id = ? ORDER BY price DESC LIMIT 1',
-                               (product_id,))
-                highest_price_record = cursor.fetchone()
-                
-                if highest_price_record:
-                    highest_price_id, highest_price = highest_price_record
-                    highest_price_float = clean_price(highest_price)
-                    
-                    if new_price_float < highest_price_float:
-                        # Substituir o maior preço pelo novo preço menor
-                        cursor.execute('UPDATE historic_price SET price = ?, title = ?, url = ?, date = ? WHERE id = ?',
-                                       (new_price, title, url, datetime.now(), highest_price_id))
-            
-            await send_discord_notification(title, old_price_float, new_price_float, url, discount_percentage)
+            # Adicionar novo preço ao histórico
+            cursor.execute('INSERT INTO historic_price (product_id, title, url, price, date) VALUES (?, ?, ?, ?, ?)',
+                           (product_id, title, url, new_price, datetime.now()))
         
         conn.commit()
+    except sqlite3.Error as e:
+        logging.error(f"Erro de banco de dados ao comparar e atualizar preços para o produto '{title}': {str(e)}")
     except Exception as e:
-        logging.error(f"Erro ao comparar e atualizar preços para o produto '{title}': {str(e)}")
+        logging.error(f"Erro inesperado ao comparar e atualizar preços para o produto '{title}': {str(e)}")
     finally:
         conn.close()
+
 
 
 # Função para salvar no banco
@@ -261,15 +282,15 @@ async def insert_product(product):
         
         if existing_product is None:
             cursor.execute('''
-                INSERT INTO categories (title, price, url) 
-                VALUES (?, ?, ?)
-            ''', (product['title'], product['price'], product['url']))
+                INSERT INTO categories (title, price, url, last_notification_date) 
+                VALUES (?, ?, ?, ?)
+            ''', (product['title'], product['price'], product['url'], datetime.now()))
             product_id = cursor.lastrowid
             logging.info(f"Novo produto adicionado: ID {product_id} - {product['title']}")
             
             # Adicionar o primeiro preço ao histórico
             cursor.execute('INSERT INTO historic_price (product_id, price, date) VALUES (?, ?, ?)',
-                           (product_id, product['price'], datetime.now()))
+                        (product_id, product['price'], datetime.now()))
             
             # Enviar notificação para o Discord sobre novo produto
             await send_discord_notification(product['title'], 0, float(product['price'].replace('R$', '').replace('.', '').replace(',', '.')), product['url'], 0, new_product=True)
@@ -290,7 +311,7 @@ async def insert_product(product):
 # Função para processar uma categoria
 async def process_category(semaphore, rh):
     async with semaphore:
-        for page in range(1, 402):  # Vai de 1 a 401
+        for page in range(1, 401):  # Vai de 1 a 401
             logging.info(f"Buscando categoria {rh}, página {page}")
             html_content = await fetch_data(page, rh)
             if html_content:
@@ -307,38 +328,38 @@ async def process_category(semaphore, rh):
             
             if page == 401:
                 logging.info(f"Atingido o limite máximo de 401 páginas para a categoria {rh}. Pausando por 5 minutos.")
-                await asyncio.sleep(300)  # Pausa de 5 minutos (300 segundos)
+                await asyncio.sleep(1)  # Pausa de 5 minutos (300 segundos)
+
 
 async def send_discord_notification(title, old_price, new_price, url, desconto_percentual, new_product=False):
     webhooks = {
-        "1-20": "https://discord.com/api/webhooks/1331322843916664944/6-lXqiaxkzo8hYbTl6fD71aZkdF2Yxi8T5r_JjbdVJ_sQghNVT2tj51Of6Igg1t7geAC",
-        "21-50": "https://discord.com/api/webhooks/1331322896299327509/_oM_OZRRZDIN9yZxKRYV0tSsb3zyVV3mDIM1bfpoDvxt9908IwyZfV-E9VpBR-Cjtp9k",
-        "51-70": "https://discord.com/api/webhooks/1331322954428186726/vIU1ATo1GlkrsjeQrcOCMz6uyO3XZKUpeHk6Y904pZy1MLkVwE9vZcx9jceAfovANzws",
-        "71-100": "https://discord.com/api/webhooks/1331323022388494457/WMlszZnhJ3xuUvx6x_ZnWs6b-_MJlmazc1xor0VWNG9ED8VU_31fMERDY8ndU_LXb7Y_",
+        "30-49": "https://discord.com/api/webhooks/1331322896299327509/_oM_OZRRZDIN9yZxKRYV0tSsb3zyVV3mDIM1bfpoDvxt9908IwyZfV-E9VpBR-Cjtp9k",
+        "50-69": "https://discord.com/api/webhooks/1331322954428186726/vIU1ATo1GlkrsjeQrcOCMz6uyO3XZKUpeHk6Y904pZy1MLkVwE9vZcx9jceAfovANzws",
+        "70-100": "https://discord.com/api/webhooks/1331323022388494457/WMlszZnhJ3xuUvx6x_ZnWs6b-_MJlmazc1xor0VWNG9ED8VU_31fMERDY8ndU_LXb7Y_",
         "novos": "https://discord.com/api/webhooks/1331322778028212294/QRguTNyM0Uiu1XBvQwrvJkIFUZ2vlYID7Y_b3D3CKiTUYVP8iB7c0ntKS3rh4mVrrsTn"
     }
-
     try:
-        if new_product:
-            webhook_url = webhooks["novos"]
-        elif desconto_percentual <= 20:
-            webhook_url = webhooks["1-20"]
-        elif desconto_percentual <= 50:
-            webhook_url = webhooks["21-50"]
-        elif desconto_percentual <= 70:
-            webhook_url = webhooks["51-70"]
+        # if new_product:
+        #     webhook_url = webhooks["novos"]
+        if 30 <= desconto_percentual < 50:
+            webhook_url = webhooks["30-49"]
+        elif 50 <= desconto_percentual < 70:
+            webhook_url = webhooks["50-69"]
+        elif 70 <= desconto_percentual <= 100:
+            webhook_url = webhooks["70-100"]
         else:
-            webhook_url = webhooks["71-100"]
+            logging.warning(f"Produto não se encaixa na faixa procurada. Desconto: {desconto_percentual:.2f}%")
+            return
 
         webhook = DiscordWebhook(url=webhook_url)
         embed = DiscordEmbed(title=title, description="Alteração de preço detectada!" if not new_product else "Novo produto adicionado!", color='03b2f8')
         embed.add_embed_field(name="Preço Antigo", value=f"R$ {old_price:.2f}")
         embed.add_embed_field(name="Novo Preço", value=f"R$ {new_price:.2f}")
         embed.add_embed_field(name="Desconto", value=f"{desconto_percentual:.2f}%")
-        embed.add_embed_field(name="Loja", value=f"Amazon")
+        embed.add_embed_field(name="Loja", value="Amazon")
         embed.add_embed_field(name="Link do Produto", value=f"[Clique aqui]({url})")
         webhook.add_embed(embed)
-        response = webhook.execute()
+        response = await webhook.execute()
         if response.status_code == 200:
             logging.info(f"Webhook enviado: {title} - Novo preço: R$ {new_price:.2f} - Desconto: {desconto_percentual:.2f}%")
         else:
@@ -346,10 +367,11 @@ async def send_discord_notification(title, old_price, new_price, url, desconto_p
     except Exception as e:
         logging.error(f"Erro ao enviar webhook: {str(e)}")
 
+
 # Função principal
 async def make_requests_hardware():
     create_database()
-    semaphore = asyncio.Semaphore(1)
+    semaphore = asyncio.Semaphore(3)
     
     # Crie tarefas explicitamente
     tasks = [asyncio.create_task(process_category(semaphore, rh)) for rh in rh_params]
@@ -361,7 +383,7 @@ async def make_requests_hardware():
         
         if not tasks:
             logging.info("Todas as categorias foram processadas. Pausando por 5 minutos antes de reiniciar.")
-            await asyncio.sleep(300)
+            await asyncio.sleep(1)
             tasks = [asyncio.create_task(process_category(semaphore, rh)) for rh in rh_params]
 
 if __name__ == '__main__':

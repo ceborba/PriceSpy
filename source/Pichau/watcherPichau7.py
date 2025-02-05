@@ -380,7 +380,7 @@ async def run_pichau_watcher7():
         start_time = time.time()
 
         async with aiohttp.ClientSession() as session:
-            category_ids = ["9", "102", "131"]
+            category_ids = ["9", "102", "131", "14"]
             tasks = [fetch(session, url, category_id, conn, semaphore) for category_id in category_ids]
             await asyncio.gather(*tasks)
 

@@ -13,9 +13,16 @@ DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1329907475524227143/Q3EM
 def get_db_connection():
     conn = sqlite3.connect('promobit_monitor.db', check_same_thread=False)
     cursor = conn.cursor()
-    cursor.execute('''CREATE TABLE IF NOT EXISTS posts
-                      (id TEXT PRIMARY KEY, title TEXT, old_price REAL, 
-                       current_price REAL, coupon TEXT, timestamp TEXT)''')
+    cursor.execute('''
+                   CREATE TABLE IF NOT EXISTS posts
+                   (id TEXT PRIMARY KEY,
+                   title TEXT, old_price REAL, 
+                   current_price REAL,
+                   coupon TEXT,
+                   photo TEXT,
+                   timestamp TEXT
+                   )
+                   ''')
     conn.commit()
     return conn, cursor
 
@@ -31,8 +38,16 @@ async def fetch_posts(session):
         return []
 
 def extract_offer_info(offer):
+    base_url = "https://www.promobit.com.br"
+    photo_url = offer.get('offer_photo', '')
+    
+    # Verifica se a foto já começa com /static/p/
+    if photo_url and not photo_url.startswith('/static/p/'):
+        photo_url = f"/static/p{photo_url}" if photo_url.startswith('/') else f"/static/p/{photo_url}"
+    
     return {
         'id': offer.get('offer_id'),
+        'photo': f"{base_url}{photo_url}" if photo_url else None,
         'title': offer.get('offer_title'),
         'old_price': offer.get('offer_old_price'),
         'price': offer.get('offer_price'),
@@ -47,16 +62,37 @@ def is_new_post(cursor, offer_id):
 
 def save_post(conn, cursor, offer):
     cursor.execute("""
-        INSERT INTO posts (id, title, old_price, current_price, coupon, timestamp) 
-        VALUES (?, ?, ?, ?, ?, ?)""",
+        INSERT INTO posts (id, title, old_price, current_price, coupon, photo, timestamp) 
+        VALUES (?, ?, ?, ?, ?, ?, ?)""",
         (offer['id'], offer['title'], offer['old_price'] or 0, 
-         offer['price'], offer['coupon'], offer['timestamp']))
+         offer['price'], offer['coupon'], offer['photo'], offer['timestamp']))
     conn.commit()
+
+
+def normalize_photo_url(url):
+    if not url:
+        return None
+        
+    base_url = "https://www.promobit.com.br"
+    
+    # Remove base URL se já existir
+    if url.startswith(base_url):
+        url = url.replace(base_url, '')
+    
+    # Adiciona /static/p/ se necessário
+    if not url.startswith('/static/p/') and not url.startswith('/static/'):
+        url = f"/static/p{url}" if url.startswith('/') else f"/static/p/{url}"
+    
+    return f"{base_url}{url}"
+
 
 def send_discord_notification(offer):
     webhook = DiscordWebhook(url=DISCORD_WEBHOOK_URL)
     
     offer_link = f"https://www.promobit.com.br/oferta/{offer['offer_slug']}"
+    offer_img = offer['photo']
+    
+    logging.debug(f"URL da imagem: {offer_img}")
     
     description = f"Novo Preço: R$ {offer['price']}\n"
     if offer['old_price']:
@@ -74,9 +110,19 @@ def send_discord_notification(offer):
         color='03b2f8'
     )
     embed.set_timestamp()
+
+    if offer_img:
+        try:
+            embed.set_image(url=offer_img)
+        except Exception as e:
+            logging.error(f"Erro ao definir imagem: {str(e)}")
+            logging.error(f"URL problemática: {offer_img}")
     
     webhook.add_embed(embed)
-    webhook.execute()
+    response = webhook.execute()
+    
+    if response.status_code != 200:
+        logging.error(f"Erro ao enviar webhook: {response.status_code}")
 
 async def monitor_promobit():
     conn, cursor = get_db_connection()

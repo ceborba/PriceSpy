@@ -1,10 +1,15 @@
 import aiohttp
 import asyncio
-from datetime import datetime
+from datetime import datetime, UTC
 import logging
 import sqlite3
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+def adapt_datetime(dt):
+    return dt.isoformat()
+
+sqlite3.register_adapter(datetime, adapt_datetime)
 
 async def get_db_connection():
     conn = sqlite3.connect('pelando_monitor.db', check_same_thread=False)
@@ -15,6 +20,7 @@ async def get_db_connection():
             title TEXT,
             price REAL,
             url TEXT,
+            image_url TEXT,
             timestamp DATETIME,
             couponCode TEXT,
             status TEXT
@@ -38,6 +44,9 @@ async def fetch_recent_posts(session):
                     status
                     title
                     price
+                    image {
+                        url(height: 238)
+                    }
                 }
             }
         }
@@ -70,14 +79,15 @@ async def check_new_posts():
                         if cursor.fetchone() is None:
                             cursor.execute(
                                 """INSERT INTO posts 
-                                (id, title, price, url, timestamp, couponCode, status) 
-                                VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                                (id, title, price, url, image_url, timestamp, couponCode, status) 
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
                                 (
                                     post['id'],
                                     post['title'],
                                     post.get('price'),
                                     post['sourceUrl'],
-                                    datetime.now(),
+                                    post['image']['url'] if post.get('image') and post['image'].get('url') else None,
+                                    datetime.now(UTC),
                                     post.get('couponCode'),
                                     post['status']
                                 )
@@ -98,7 +108,8 @@ async def send_discord_notification(post):
                 "title": f"[PELANDO] {post['title']}",
                 "description": "",
                 "color": 0x03b2f8,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(UTC).isoformat(),
+                "image": {"url": post['image']['url']} if post.get('image') and post['image'].get('url') else None
             }]
         }
 
