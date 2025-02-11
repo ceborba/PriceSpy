@@ -32,7 +32,7 @@ def create_table():
 async def send_discord_notification(product, old_price, new_price, is_new_product):
     webhooks = {
         "1-100": "https://discord.com/api/webhooks/1334653358933413909/rbqtqXQ-3UyA_o07Qtj0Xg0gutjYFSjjX8VojILIQmdYTBtLS3NKumjtVLbkAGo2IMtl",
-        "novos": "https://discord.com/api/webhooks/1333511968635621458/b2YzmBqd32jDiPQEfZmuN93MQYlvrI3T7zdRKrIKSaJBxJy9fA4mWsus1CzfU3WsqnMS"
+        "novos": "https://discord.com/api/webhooks/1334659073206915293/PIsIgkMzbBUbNW3KCudznhCnWdKq23qn8R4BSKnVXh8nm5Rnvleamfb2cBTrZsIjKy3O"
     }
 
     try:
@@ -167,7 +167,7 @@ async def extrair_produtos():
     session = tls_client.Session(client_identifier="firefox_102")
     
     all_products = []
-    for page in range(0, 8):
+    for page in range(1, 8):
         response = await fetch_casasbahia_data(session, page)
         if response:
             products = await extract_products(response)
@@ -228,11 +228,11 @@ async def fetch_preco_produtos(max_retries=3, delay=1):
     logging.error("Todas as tentativas falharam ao buscar preços dos produtos.")
     return produtos, []
 
-async def juntar_e_exibir_produtos():
+async def juntar_e_exibir_produtos_casasbahia():
     produtos, precos = await fetch_preco_produtos()
     
     logging.info(f"Produtos extraídos: {len(produtos)}")
-    logging.info(f"Preços obtidos: {len(precos)}")
+    logging.info(f"CASAS BAHIA - Preços obtidos: {len(precos)}")
 
     produto_dict = {str(produto['sku']): produto for produto in produtos}
     
@@ -244,21 +244,16 @@ async def juntar_e_exibir_produtos():
 
             # Inserir os dados no banco de dados
             insert_produto(produto['id'], produto['name'], produto['url'], produto['sku'], preco_pix)
-
-            # Exibir os dados no log
-            # logging.info(f"Produto ID: {produto['id']}")
-            # logging.info(f"Nome: {produto['name']}")
-            # logging.info(f"URL: {produto['url']}")
-            # logging.info(f"Preço: R$ {preco_pix:.2f}")
-            # logging.info(f"SKU: {produto['sku']}")
-            # logging.info("-" * 50)
     
     if not precos:
         logging.info("Nenhum preço foi retornado. Verifique a resposta da API.")
 
-
-if __name__ == "__main__":
+async def monitor_casasbahia():
     create_table()  # Cria a tabela antes de iniciar o processo
     while True:
-        asyncio.run(juntar_e_exibir_produtos())
-        time.sleep(60)
+        await juntar_e_exibir_produtos_casasbahia()
+        await asyncio.sleep(100)
+
+
+if __name__ == "__main__":
+    asyncio.run(monitor_casasbahia())

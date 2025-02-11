@@ -1,333 +1,290 @@
-import aiohttp
-import asyncio
-import json
-from datetime import datetime
+import tls_client
 import sqlite3
+import time
 import logging
+from datetime import datetime
+import json
 from discord_webhook import DiscordWebhook, DiscordEmbed
 import base64
-import time
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def calcular_desconto(preco_antigo, preco_novo):
-    if preco_antigo == 0:
-        return 0
-    preco_antigo = float(preco_antigo) if isinstance(preco_antigo, str) else preco_antigo
-    preco_novo = float(preco_novo) if isinstance(preco_novo, str) else preco_novo
-    desconto = ((preco_antigo - preco_novo) / preco_antigo) * 100
-    return f"{desconto:.2f}"
 
-def decode_and_modify_variables(encoded_variables, start, end):
-    decoded = json.loads(base64.b64decode(encoded_variables).decode('utf-8'))
-    decoded['from'] = start
-    decoded['to'] = end
-    return base64.b64encode(json.dumps(decoded).encode('utf-8')).decode('utf-8')
+# Configurar logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 
-class EletroclubMonitor:
+class EletroclubWatcher:
     def __init__(self):
-        self.base_url = "https://www.eletroclub.com.br/_v/segment/graphql/v1"
-        self.variables = [
-                # "eyJoaWRlVW5hdmFpbGFibGVJdGVtcyI6ZmFsc2UsInNrdXNGaWx0ZXIiOiJBTEwiLCJzaW11bGF0aW9uQmVoYXZpb3IiOiJkZWZhdWx0IiwiaW5zdGFsbG1lbnRDcml0ZXJpYSI6Ik1BWF9XSVRIT1VUX0lOVEVSRVNUIiwicHJvZHVjdE9yaWdpblZ0ZXgiOmZhbHNlLCJtYXAiOiJjIiwicXVlcnkiOiJhY2Vzc29yaW9zIiwib3JkZXJCeSI6Ik9yZGVyQnlCZXN0RGlzY291bnRERVNDIiwiZnJvbSI6MCwidG8iOjExLCJzZWxlY3RlZEZhY2V0cyI6W3sia2V5IjoiYyIsInZhbHVlIjoiYWNlc3NvcmlvcyJ9XSwiZmFjZXRzQmVoYXZpb3IiOiJTdGF0aWMiLCJjYXRlZ29yeVRyZWVCZWhhdmlvciI6ImRlZmF1bHQiLCJ3aXRoRmFjZXRzIjpmYWxzZSwiYWR2ZXJ0aXNlbWVudE9wdGlvbnMiOnsic2hvd1Nwb25zb3JlZCI6dHJ1ZSwic3BvbnNvcmVkQ291bnQiOjMsImFkdmVydGlzZW1lbnRQbGFjZW1lbnQiOiJ0b3Bfc2VhcmNoIiwicmVwZWF0U3BvbnNvcmVkUHJvZHVjdHMiOnRydWV9fQ==",
-                "eyJoaWRlVW5hdmFpbGFibGVJdGVtcyI6ZmFsc2UsInNrdXNGaWx0ZXIiOiJBTEwiLCJzaW11bGF0aW9uQmVoYXZpb3IiOiJkZWZhdWx0IiwiaW5zdGFsbG1lbnRDcml0ZXJpYSI6Ik1BWF9XSVRIT1VUX0lOVEVSRVNUIiwicHJvZHVjdE9yaWdpblZ0ZXgiOmZhbHNlLCJtYXAiOiJjIiwicXVlcnkiOiJvdXRsZXQiLCJvcmRlckJ5IjoiT3JkZXJCeVJlbGVhc2VEYXRlREVTQyIsImZyb20iOjAsInRvIjoxMSwic2VsZWN0ZWRGYWNldHMiOlt7ImtleSI6ImMiLCJ2YWx1ZSI6Im91dGxldCJ9XSwiZmFjZXRzQmVoYXZpb3IiOiJTdGF0aWMiLCJjYXRlZ29yeVRyZWVCZWhhdmlvciI6ImRlZmF1bHQiLCJ3aXRoRmFjZXRzIjpmYWxzZSwiYWR2ZXJ0aXNlbWVudE9wdGlvbnMiOnsic2hvd1Nwb25zb3JlZCI6dHJ1ZSwic3BvbnNvcmVkQ291bnQiOjMsImFkdmVydGlzZW1lbnRQbGFjZW1lbnQiOiJ0b3Bfc2VhcmNoIiwicmVwZWF0U3BvbnNvcmVkUHJvZHVjdHMiOnRydWV9fQ==",
-                "eyJoaWRlVW5hdmFpbGFibGVJdGVtcyI6ZmFsc2UsInNrdXNGaWx0ZXIiOiJBTEwiLCJzaW11bGF0aW9uQmVoYXZpb3IiOiJkZWZhdWx0IiwiaW5zdGFsbG1lbnRDcml0ZXJpYSI6Ik1BWF9XSVRIT1VUX0lOVEVSRVNUIiwicHJvZHVjdE9yaWdpblZ0ZXgiOmZhbHNlLCJtYXAiOiJjIiwicXVlcnkiOiJjb3ppbmhhIiwib3JkZXJCeSI6Ik9yZGVyQnlSZWxlYXNlRGF0ZURFU0MiLCJmcm9tIjowLCJ0byI6MTEsInNlbGVjdGVkRmFjZXRzIjpbeyJrZXkiOiJjIiwidmFsdWUiOiJjb3ppbmhhIn1dLCJmYWNldHNCZWhhdmlvciI6IlN0YXRpYyIsImNhdGVnb3J5VHJlZUJlaGF2aW9yIjoiZGVmYXVsdCIsIndpdGhGYWNldHMiOmZhbHNlLCJhZHZlcnRpc2VtZW50T3B0aW9ucyI6eyJzaG93U3BvbnNvcmVkIjp0cnVlLCJzcG9uc29yZWRDb3VudCI6MywiYWR2ZXJ0aXNlbWVudFBsYWNlbWVudCI6InRvcF9zZWFyY2giLCJyZXBlYXRTcG9uc29yZWRQcm9kdWN0cyI6dHJ1ZX19",
-                "eyJoaWRlVW5hdmFpbGFibGVJdGVtcyI6ZmFsc2UsInNrdXNGaWx0ZXIiOiJBTEwiLCJzaW11bGF0aW9uQmVoYXZpb3IiOiJkZWZhdWx0IiwiaW5zdGFsbG1lbnRDcml0ZXJpYSI6Ik1BWF9XSVRIT1VUX0lOVEVSRVNUIiwicHJvZHVjdE9yaWdpblZ0ZXgiOmZhbHNlLCJtYXAiOiJjIiwicXVlcnkiOiJjbGltYXRpemFjYW8iLCJvcmRlckJ5IjoiT3JkZXJCeVJlbGVhc2VEYXRlREVTQyIsImZyb20iOjAsInRvIjoxMSwic2VsZWN0ZWRGYWNldHMiOlt7ImtleSI6ImMiLCJ2YWx1ZSI6ImNsaW1hdGl6YWNhbyJ9XSwiZmFjZXRzQmVoYXZpb3IiOiJTdGF0aWMiLCJjYXRlZ29yeVRyZWVCZWhhdmlvciI6ImRlZmF1bHQiLCJ3aXRoRmFjZXRzIjpmYWxzZSwiYWR2ZXJ0aXNlbWVudE9wdGlvbnMiOnsic2hvd1Nwb25zb3JlZCI6dHJ1ZSwic3BvbnNvcmVkQ291bnQiOjMsImFkdmVydGlzZW1lbnRQbGFjZW1lbnQiOiJ0b3Bfc2VhcmNoIiwicmVwZWF0U3BvbnNvcmVkUHJvZHVjdHMiOnRydWV9fQ==",
-                "eyJoaWRlVW5hdmFpbGFibGVJdGVtcyI6ZmFsc2UsInNrdXNGaWx0ZXIiOiJBTEwiLCJzaW11bGF0aW9uQmVoYXZpb3IiOiJkZWZhdWx0IiwiaW5zdGFsbG1lbnRDcml0ZXJpYSI6Ik1BWF9XSVRIT1VUX0lOVEVSRVNUIiwicHJvZHVjdE9yaWdpblZ0ZXgiOmZhbHNlLCJtYXAiOiJjIiwicXVlcnkiOiJjYXNhIiwib3JkZXJCeSI6Ik9yZGVyQnlSZWxlYXNlRGF0ZURFU0MiLCJmcm9tIjowLCJ0byI6MTEsInNlbGVjdGVkRmFjZXRzIjpbeyJrZXkiOiJjIiwidmFsdWUiOiJjYXNhIn1dLCJmYWNldHNCZWhhdmlvciI6IlN0YXRpYyIsImNhdGVnb3J5VHJlZUJlaGF2aW9yIjoiZGVmYXVsdCIsIndpdGhGYWNldHMiOmZhbHNlLCJhZHZlcnRpc2VtZW50T3B0aW9ucyI6eyJzaG93U3BvbnNvcmVkIjp0cnVlLCJzcG9uc29yZWRDb3VudCI6MywiYWR2ZXJ0aXNlbWVudFBsYWNlbWVudCI6InRvcF9zZWFyY2giLCJyZXBlYXRTcG9uc29yZWRQcm9kdWN0cyI6dHJ1ZX19",
-        ]       
-        self.headers = {
-            "accept": "application/json",
-            "content-type": "application/json",
-            "referer": "https://www.eletroclub.com.br/outlet",
-            "sec-ch-ua": '"Not A(Brand";v="8", "Chromium";v="132", "Google Chrome";v="132"',
-            "sec-ch-ua-mobile": "?0",
-            "sec-ch-ua-platform": '"Windows"',
-            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36"
-        }
-        self.items_per_page = 50
-        self.conn = self.create_db()
-            
-    def create_db(self):
-        conn = sqlite3.connect('productsEletroclub.db')
-        cursor = conn.cursor()
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS productsEletroclub (
-                id TEXT PRIMARY KEY,
-                name TEXT,
-                url_key TEXT,
-                price_discount REAL,
-                price_promotional REAL,
-                new_price REAL,
-                condition TEXT,
-                garantia TEXT,
-                em_estoque BOOLEAN DEFAULT FALSE  -- Nova coluna
-            )
-        ''')
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS price_history (
-                id TEXT,
-                name TEXT,
-                price REAL,
-                date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (id)
-            )
-        ''')
-        conn.commit()
-        return conn
-    
-
-    def atualizar_preco(self, item_id, nome, preco_atual, link, preco_desc=None, condition=None, garantia=None, quantidade_disponivel=0):
-        preco_atual = preco_atual or 0
-        preco_desc = preco_desc or 0
-
-        cursor = self.conn.cursor()
-        em_estoque = quantidade_disponivel > 0
-
-        cursor.execute("SELECT price_promotional, name, em_estoque FROM productsEletroclub WHERE id = ?", (item_id,))
-        result = cursor.fetchone()
-
-        if result:
-            preco_antigo, nome_antigo, estoque_antigo = result
-            preco_antigo = preco_antigo or 0
-            mudancas = []
-
-            if estoque_antigo != em_estoque:
-                mudancas.append(f"Estoque: {'Disponível' if em_estoque else 'Esgotado'}")
-                # Só envia webhook se o produto estiver em estoque
-                if not estoque_antigo and em_estoque:
-                    self.enviar_webhook_discord(nome, preco_atual, preco_atual, 
-                        f"https://www.eletroclub.com.br/checkout/cart/add?sku={item_id}&qty=1&seller=1&sc=5", 
-                        f"https://www.eletroclub.com.br{link}", 
-                        0, webhook_key="novos")
-                    # print("oi")
-            
-            if preco_atual != preco_antigo:
-                mudancas.append(f"Preço: {float(preco_antigo):.2f} -> {float(preco_atual):.2f}")
-                # Só envia webhook de alteração de preço se tiver estoque
-                if em_estoque and preco_atual != 0:
-                    link_produto = f"https://www.eletroclub.com.br/checkout/cart/add?sku={item_id}&qty=1&seller=1&sc=5"
-                    link_produto2 = f"https://www.eletroclub.com.br{link}"
-                    desconto_percentual = calcular_desconto(preco_antigo, preco_atual)
-                    self.enviar_webhook_discord(nome, preco_antigo, preco_atual, link_produto, link_produto2, desconto_percentual)
-
-            if nome != nome_antigo:
-                mudancas.append(f"Nome: '{nome_antigo}' -> '{nome}'")
-
-            if mudancas:
-                cursor.execute('''
-                    UPDATE productsEletroclub
-                    SET price_promotional = ?, price_discount = ?, name = ?, condition = ?, garantia = ?, em_estoque = ?
-                    WHERE id = ?
-                ''', (preco_atual, preco_desc, nome, condition, garantia, em_estoque, item_id))
-
-                cursor.execute('''
-                    INSERT OR REPLACE INTO price_history (id, name, price)
-                    VALUES (?, ?, ?)
-                ''', (item_id, nome, preco_atual))
-
-                self.conn.commit()
-                logging.info(f"Produto {nome} atualizado: {', '.join(mudancas)}")
-
-        else:
-            cursor.execute('''
-                INSERT INTO productsEletroclub (id, name, url_key, price_discount, price_promotional, condition, garantia, em_estoque)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (item_id, nome, link, preco_desc, preco_atual, condition, garantia, em_estoque))
-
-            cursor.execute('''
-                INSERT INTO price_history (id, name, price)
-                VALUES (?, ?, ?)
-            ''', (item_id, nome, preco_atual))
-
-            self.conn.commit()
-            logging.info(f"Novo produto adicionado: {nome} - Preço: {preco_atual:.2f}")
-
-            # Só envia webhook de novo produto se tiver estoque
-            if em_estoque and preco_atual != 0:
-                link_produto = f"https://www.eletroclub.com.br/checkout/cart/add?sku={item_id}&qty=1&seller=1&sc=5"
-                link_produto2 = f"https://www.eletroclub.com.br{link}"
-                self.enviar_webhook_discord(nome, preco_atual, preco_atual, link_produto, link_produto2, 0, webhook_key="novos")
-        
-        return True if result else False
-
-
-    def enviar_webhook_discord(self, nome_produto, preco_antigo, preco_novo, link_produto, link_produto2, desconto_percentual, webhook_key="com-desconto"):
-        webhooks = {
+        self.session = tls_client.Session(
+            client_identifier="chrome_120",
+            random_tls_extension_order=True
+        )
+        self.conn = sqlite3.connect('prices.db')
+        self.cursor = self.conn.cursor()
+        self._create_table()
+        self.webhooks = {
             "com-desconto": "https://discord.com/api/webhooks/1332230389015773235/sHaaOjhaNvv2_fBE0c9i4SFqTY1349q_Hi5stA8M7bmS8ND6A85fxoZ2lKkC0WoVPwc2",
             "novos": "https://discord.com/api/webhooks/1336100720981708932/cVRdMpaPj0lrIHHEpLTAviuNBnnB__POsRscvVlDXXwDEQ5MMzQe5BpJ5EMOvUj0fuzG"
         }
 
-        webhook_url = webhooks.get(webhook_key, webhooks["com-desconto"])
-        is_novo_produto = webhook_key == "novos"
+    def _create_table(self):
+        self.cursor.execute('''
+            CREATE TABLE IF NOT EXISTS produtos (
+                product_id TEXT,
+                item_id TEXT,
+                nome TEXT,
+                preco REAL,
+                estoque INTEGER,
+                link TEXT,
+                voltagem TEXT,
+                atualizado_em DATETIME,
+                PRIMARY KEY (product_id, item_id)
+            )
+        ''')
+        self.conn.commit()
 
+    def enviar_webhook_discord(self, nome_produto, preco_antigo, preco_novo, link_produto, link_carrinho, desconto_percentual, novo_produto=False):
+        webhook_url = self.webhooks["novos"] if novo_produto else self.webhooks["com-desconto"]
         webhook = DiscordWebhook(url=webhook_url)
         
         embed = DiscordEmbed(
-            title=f"{'🆕 ' if is_novo_produto else '💰 '}{nome_produto}",
-            description="Produto disponível em estoque!" if is_novo_produto else f"Desconto de {desconto_percentual:.2f}%",
-            color='00ff00' if is_novo_produto else '03b2f8'
+            title=nome_produto,
+            description="Novo produto adicionado!" if novo_produto else "Alteração detectada!",
+            color='03b2f8'
         )
         
-        if not is_novo_produto:
-            embed.add_embed_field(name="Preço Antigo", value=f"R$ {preco_antigo:.2f}")
-        
-        embed.add_embed_field(name="Preço Atual", value=f"R$ {preco_novo:.2f}")
-        
-        if not is_novo_produto:
-            embed.add_embed_field(name="Desconto", value=f"{desconto_percentual:.2f}%")
-        
-        embed.add_embed_field(name="Disponibilidade", value="✅ Em estoque" if is_novo_produto else "🛒 Comprar agora")
-        embed.add_embed_field(name="Link Direto", value=f"[Adicionar ao carrinho]({link_produto})")
-        embed.add_embed_field(name="Página do Produto", value=f"[Ver detalhes]({link_produto2})")
+        embed.add_embed_field(name="Preço Antigo", value=f"R$ {preco_antigo:.2f}")
+        embed.add_embed_field(name="Novo Preço", value=f"R$ {preco_novo:.2f}")
+        embed.add_embed_field(name="Desconto", value=f"{desconto_percentual:.2f}%")
+        embed.add_embed_field(name="Loja", value="EletroClub")
+        embed.add_embed_field(name="Comprar", value=f"[🛒 Adicionar ao carrinho]({link_carrinho})")
+        embed.add_embed_field(name="Detalhes", value=f"[🔍 Ver produto]({link_produto})")
         
         webhook.add_embed(embed)
         response = webhook.execute()
         
         if response.status_code == 200:
-            tipo = "novo produto" if is_novo_produto else "desconto"
-            logging.info(f"Notificação de {tipo} enviada: {nome_produto}")
+            logging.info(f"Webhook enviado: {nome_produto}")
         else:
-            logging.error(f"Erro no webhook ({webhook_key}): {response.status_code}")
+            logging.error(f"Erro ao enviar webhook: {response.status_code}")
 
 
-    async def fetch_page(self, variables):
-        url = f"{self.base_url}"
+    def fetch_products(self, category="outlet", page=0):
+        
         params = {
-            "workspace": "master",
-            "maxAge": "short",
-            "appsEtag": "remove",
-            "domain": "store",
-            "locale": "pt-BR",
-            "__bindingId": "378597e2-4c99-4a15-b5b0-ed9a10bd1a78",
-            "operationName": "productSearchV3",
-            "variables": "{}",
-            "extensions": json.dumps({
-                "persistedQuery": {
-                    "version": 1,
-                    "sha256Hash": "9177ba6f883473505dc99fcf2b679a6e270af6320a157f0798b92efeab98d5d3",
-                    "sender": "vtex.store-resources@0.x",
-                    "provider": "vtex.search-graphql@0.x"
-                },
-                "variables": variables
-            })
+            'workspace': 'master',
+            'maxAge': 'short',
+            'appsEtag': 'remove',
+            'domain': 'store',
+            'locale': 'pt-BR',
+            '__bindingId': '378597e2-4c99-4a15-b5b0-ed9a10bd1a78',
+            'operationName': 'productSearchV3',
+            'variables': json.dumps({
+                "hideUnavailableItems": False,
+                "skusFilter": "ALL",
+                "simulationBehavior": "default",
+                "installmentCriteria": "MAX_WITHOUT_INTEREST",
+                "productOriginVtex": False,
+                "map": "c",
+                "query": category,
+                "orderBy": "OrderByPriceASC",
+                "from": page * 12,
+                "to": (page + 1) * 12 - 1,
+                "selectedFacets": [{"key": "c", "value": category}],
+                "operator": "and",
+                "fuzzy": "1",
+                "searchState": None,
+                "facetsBehavior": "Static",
+                "categoryTreeBehavior": "default",
+                "withFacets": False,
+                "advertisementOptions": {
+                    "showSponsored": True,
+                    "sponsoredCount": 3,
+                    "advertisementPlacement": "top_search",
+                    "repeatSponsoredProducts": True
+                }
+            }),
+            'extensions': '{"persistedQuery":{"version":1,"sha256Hash":"9177ba6f883473505dc99fcf2b679a6e270af6320a157f0798b92efeab98d5d3","sender":"vtex.store-resources@0.x","provider":"vtex.search-graphql@0.x"}}',
         }
+        
+        headers = {
+            'Sec-Ch-Ua-Platform': '"macOS"',
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, como Gecko) Chrome/131.0.0.0 Safari/537.36',
+            'Accept': '/',
+            'Sec-Ch-Ua': '"Chromium";v="131", "Not_A Brand";v="24"',
+            'Content-Type': 'application/json',
+            'Dnt': '1',
+            'Sec-Ch-Ua-Mobile': '?0',
+            'Sec-Fetch-Site': 'same-origin',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Dest': 'empty',
+            'Referer': f'https://www.eletroclub.com.br/{category}',
+            'Accept-Encoding': 'gzip, deflate, br, zstd',
+            'Accept-Language': 'pt-BR,pt;q=0.9',
+            'Priority': 'u=1, i'
+        }
+
+
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, params=params, headers=self.headers) as response:
-                    print(f"EletroClub - Status Code: {response.status}")
-
-                    try:
-                        if response.status == 200:
-                            return await response.json(content_type=None)
-                        elif response.status == 500:
-                            logging.error(f"Erro 500 na requisição. URL: {response.url}, Método: {response.method}")
-                        else:
-                            logging.error(f"Erro na requisição: Status {response.status}")
-                        return None
-                    except Exception as e:
-                        logging.error(f"Erro na requisição: {e}")
-                        return None
+            response = self.session.get(
+                'https://www.eletroclub.com.br/_v/segment/graphql/v1',
+                params=params,
+                headers=headers
+            )
+            return response.json()
         except Exception as e:
-            print(f"Erro na conexão: {e}")
+            logging.error(f"Erro na requisição ({category}): {str(e)}")
+            return None
 
-    async def monitor_pages(self):
-        semaphore = asyncio.Semaphore(12)
-        start_time = time.perf_counter()
 
-        async def process_page(encoded_var, page):
-            nonlocal total_products
-            async with semaphore:
-                start = page * self.items_per_page
-                end = start + self.items_per_page - 1
-                modified_var = decode_and_modify_variables(encoded_var, start, end)
 
-                data = await self.fetch_page(modified_var)
-                if data and 'data' in data and 'productSearch' in data['data'] and 'products' in data['data']['productSearch']:
-                    products = data['data']['productSearch']['products']
-                    for product in products:
-                        try:
-                            # produto_id = product['productId']
-                            nome_base = product['productName']
-                            link = product['link']
-                            
-                            # Extrair especificações
-                            specs = {}
-                            for group in product['specificationGroups']:
-                                if group['name'] == 'allSpecifications':
-                                    for spec in group['specifications']:
-                                        specs[spec['name']] = spec['values'][0] if spec['values'] else None
-                            
-                            condition = specs.get('Estado', None)
-                            garantia = specs.get('Garantia (Dias)', None)
-                            
-                            # Processar cada item (variação) do produto
-                            for item in product['items']:
-                                item_id = item['itemId']
-                                # print(item_id)
-                                nome_completo = item['nameComplete']
-                                ean = item['ean']
-                                
-                                # Extrair preços e quantidade disponível
-                            for seller in item['sellers']:
-                                offer = seller['commertialOffer']
-                                preco_base = offer['Price']
-                                preco_list = offer['ListPrice']
-                                available_quantity = offer.get('AvailableQuantity', 0)  # Pega quantidade disponível
-                                
-                                preco_desc = preco_list - preco_base if preco_list > preco_base else 0
-                                
-                                self.atualizar_preco(
-                                    f"{item_id}",
-                                    nome_completo,
-                                    preco_base,
-                                    link,
-                                    preco_desc=preco_desc,
-                                    condition=condition,
-                                    garantia=garantia,
-                                    quantidade_disponivel=available_quantity  # Passa a quantidade disponível
-                                )
-                                    
-                                    # Se você quiser processar apenas o primeiro seller, descomente a linha abaixo
-                                    # break
-                            
-                        except Exception as e:
-                            logging.error(f"Erro ao processar produto {item_id}: {e}")
-                await asyncio.sleep(0.5)
-            await asyncio.sleep(0.5)
-            print("Monitoramento finalizado: Iniciando novamente em 1 segundo")
+    def parse_products(self, data):
+        products = []
+        try:
+            for product in data['data']['productSearch']['products']:
+                for item in product['items']:
+                    nome_completo = item['nameComplete']
+                    voltagem = next((v['values'][0] for v in item['variations'] if v['name'] == 'Voltagem'), 'N/A')
+                    
+                    for seller in item['sellers']:
+                        offer = seller['commertialOffer']
+                        products.append({
+                            'product_id': product['productId'],
+                            'item_id': item['itemId'],
+                            'nome': nome_completo,
+                            'preco': offer['Price'],
+                            'estoque': offer['AvailableQuantity'],
+                            'link': f"https://www.eletroclub.com.br{product['link']}",
+                            'voltagem': voltagem,
+                            'atualizado_em': datetime.now().isoformat()
+                        })
+            return products
+        except KeyError as e:
+            logging.error(f"Erro ao parsear resposta: {str(e)}")
+            return []
 
+
+
+    def save_to_db(self, products):
+        new_products = []
+        price_drops = []
+        restocked_products = []
+
+        for product in products:
+            self.cursor.execute('''
+                SELECT preco, estoque FROM produtos 
+                WHERE product_id = ? AND item_id = ?
+            ''', (product['product_id'], product['item_id']))
+            result = self.cursor.fetchone()
+
+            if result is None:
+                if product['estoque'] > 0:
+                    new_products.append(product)
+                    link_carrinho = f"https://www.eletroclub.com.br/checkout/cart/add?sku={product['item_id']}&qty=1&seller=1&sc=5"
+                    self.enviar_webhook_discord(
+                        nome_produto=product['nome'],
+                        preco_antigo=0,
+                        preco_novo=product['preco'],
+                        link_produto=product['link'],
+                        link_carrinho=link_carrinho,
+                        desconto_percentual=0,
+                        novo_produto=True
+                    )
+            else:
+                old_price, old_stock = result
+                if product['preco'] != 0 and product['preco'] < old_price:
+                    price_drops.append((product, old_price))
+                    desconto_percentual = ((old_price - product['preco']) / old_price) * 100
+                    link_carrinho = f"https://www.eletroclub.com.br/checkout/cart/add?sku={product['item_id']}&qty=1&seller=1&sc=5"
+                    self.enviar_webhook_discord(
+                        nome_produto=product['nome'],
+                        preco_antigo=old_price,
+                        preco_novo=product['preco'],
+                        link_produto=product['link'],
+                        link_carrinho=link_carrinho,
+                        desconto_percentual=desconto_percentual
+                    )
+
+                if old_stock == 0 and product['estoque'] > 0:
+                    restocked_products.append(product)
+                    link_carrinho = f"https://www.eletroclub.com.br/checkout/cart/add?sku={product['item_id']}&qty=1&seller=1&sc=5"
+                    self.enviar_webhook_discord(
+                        nome_produto=product['nome'],
+                        preco_antigo=old_price,
+                        preco_novo=product['preco'],
+                        link_produto=product['link'],
+                        link_carrinho=link_carrinho,
+                        desconto_percentual=0
+                    )
+
+            self.cursor.execute('''
+                REPLACE INTO produtos 
+                (product_id, item_id, nome, preco, estoque, link, voltagem, atualizado_em)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                product['product_id'],
+                product['item_id'],
+                product['nome'],
+                product['preco'],
+                product['estoque'],
+                product['link'],
+                product['voltagem'],
+                product['atualizado_em']
+            ))
+            self.conn.commit()
+
+        if new_products:
+            logging.info(f"Novos produtos com estoque cadastrados: {len(new_products)}")
+            for product in new_products:
+                logging.info(f"Novo produto: {product['nome']} - R${product['preco']} - Estoque: {product['estoque']}")
+
+        if price_drops:
+            logging.info(f"Produtos com queda de preço: {len(price_drops)}")
+            for product, old_price in price_drops:
+                logging.info(f"Queda de preço: {product['nome']} - De R${old_price} para R${product['preco']}")
+
+        if restocked_products:
+            logging.info(f"Produtos reabastecidos: {len(restocked_products)}")
+            for product in restocked_products:
+                logging.info(f"Reabastecido: {product['nome']} - Novo estoque: {product['estoque']}")
+
+
+    def run(self, interval=0.1, max_pages=40):
         while True:
-            total_products = 0  # Reseta o contador antes do novo ciclo
-            start_time = time.perf_counter()  # Reinicia o cronômetro
-
-            for encoded_var in self.variables:
-                page = 0
-                while True:
-                    tasks = [process_page(encoded_var, page + i) for i in range(50)]
-                    results = await asyncio.gather(*tasks)
-
-                    if not any(results):  # Interrompe se nenhuma página retornar produtos
-                        break
-
-                    page += 5
-                    await asyncio.sleep(0.001)
-
-            elapsed_time = time.perf_counter() - start_time  # Tempo total de execução
-            print(f"Monitoramento finalizado: {total_products} produtos coletados em {elapsed_time:.2f} segundos.")
-
-            await asyncio.sleep(0.001)  # Espera antes de reiniciar
-
-
-
-async def monitor_eletroclub():
-    monitor = EletroclubMonitor()
-    try:
-        await monitor.monitor_pages()
-    except KeyboardInterrupt:
-        logging.info("\nMonitoramento finalizado pelo usuário")
+            try:
+                for category in ["outlet", "climatizacao", "casa", "cozinha", "cuidados-pessoais", "som-e-imagem", "refrigeracao"]:  # Lista de categorias
+                    page = 0
+                    total_products = 0
+                    while page < max_pages:
+                        data = self.fetch_products(category, page)
+                        if data and 'data' in data and 'productSearch' in data['data']:
+                            products = self.parse_products(data)
+                            if not products:
+                                break
+                            self.save_to_db(products)
+                            total_products += len(products)
+                            page += 1
+                            time.sleep(0.1)  # Pausa entre as páginas
+                        else:
+                            break
+                    
+                    logging.info(f"Total de produtos processados em {category}: {total_products}")
+                    if total_products == 0:
+                        logging.warning(f"Nenhum produto encontrado em {category}")
+                
+                # Pausa de 121 segundos após completar todas as categorias
+                logging.info("Aguardando 121 segundos antes de iniciar o próximo ciclo...")
+                time.sleep(interval)
+                
+            except KeyboardInterrupt:
+                logging.info("Monitoramento interrompido pelo usuário")
+                break
+            except Exception as e:
+                logging.error(f"Erro geral: {str(e)}")
+                time.sleep(0.2)
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(monitor_eletroclub())
-    except KeyboardInterrupt:
-        logging.info("\nPrograma finalizado pelo usuário")
-
+    monitor = EletroclubWatcher()
+    monitor.run(interval=0.1, max_pages=50)  # Executar a cada 121 segundos

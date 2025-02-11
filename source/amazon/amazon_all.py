@@ -190,7 +190,7 @@ async def fetch_data(page, rh):
             logging.error(f"Erro ao buscar dados (tentativa {attempts + 1}): {e}")
 
         attempts += 1
-        await asyncio.sleep(1)  # Pausa de 5 segundos entre tentativas
+        await asyncio.sleep(0.5)  # Pausa de 5 segundos entre tentativas
 
 
 # Função para extrair dados
@@ -371,7 +371,7 @@ async def send_discord_notification(title, old_price, new_price, url, desconto_p
 # Função principal
 async def make_requests_hardware():
     create_database()
-    semaphore = asyncio.Semaphore(3)
+    semaphore = asyncio.Semaphore(2)
     
     # Crie tarefas explicitamente
     tasks = [asyncio.create_task(process_category(semaphore, rh)) for rh in rh_params]

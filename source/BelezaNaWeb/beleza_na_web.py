@@ -37,6 +37,9 @@ class BelezanaWeb:
             "sec-fetch-site": 'same-origin',
             "sec-fetch-mode": 'cors',
             "sec-fetch-dest": 'empty',
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
         }
 
     async def fetch_page(self, param, permanentId, name_params, page_number, session):

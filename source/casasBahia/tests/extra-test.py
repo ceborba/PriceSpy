@@ -175,7 +175,7 @@ async def extrair_produtos():
     session = tls_client.Session(client_identifier="firefox_102")
     
     all_products = []
-    for page in range(0, 8):
+    for page in range(1, 8):
         response = await fetch_extra_data(session, page)
         if response:
             products = await extract_products(response)
@@ -225,7 +225,7 @@ async def fetch_preco_produtos(max_retries=3, delay=1):
                 data = response.json()
                 return produtos, data.get('PrecoProdutos', [])
             else:
-                logging.warning(f"Tentativa {attempt + 1} falhou. Código de status: {response.status_code}")
+                logging.warning(f"EXTRA - Tentativa {attempt + 1} falhou. Código de status: {response.status_code}")
                 if attempt < max_retries - 1:
                     await asyncio.sleep(delay)
         except Exception as e:
@@ -240,7 +240,7 @@ async def juntar_e_exibir_produtos_extra():
     produtos, precos = await fetch_preco_produtos()
     
     logging.info(f"Produtos extraídos: {len(produtos)}")
-    logging.info(f"Preços obtidos: {len(precos)}")
+    logging.info(f"EXTRA - Preços obtidos: {len(precos)}")
 
     produto_dict = {str(produto['sku']): produto for produto in produtos}
     
@@ -256,9 +256,13 @@ async def juntar_e_exibir_produtos_extra():
     if not precos:
         logging.info("Nenhum preço foi retornado. Verifique a resposta da API.")
 
-
-if __name__ == "__main__":
+async def monitor_extra():
     create_table()  # Cria a tabela antes de iniciar o processo
     while True:
-        asyncio.run(juntar_e_exibir_produtos_extra())
-        time.sleep(30)
+        await juntar_e_exibir_produtos_extra()
+        await asyncio.sleep(100)
+
+
+if __name__ == "__main__":
+    asyncio.run(monitor_extra())
+

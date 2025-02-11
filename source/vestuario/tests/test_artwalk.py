@@ -6,6 +6,8 @@ import sqlite3
 import logging
 from discord_webhook import DiscordWebhook, DiscordEmbed
 import base64
+import time
+import uuid
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -63,16 +65,23 @@ class ArtWalkMonitor:
     def __init__(self):
         self.base_url = "https://www.artwalk.com.br/_v/segment/graphql/v1"
         self.variables = [
-            "eyJoaWRlVW5hdmFpbGFibGVJdGVtcyI6dHJ1ZSwic2t1c0ZpbHRlciI6IkFMTF9BVkFJTEFCTEUiLCJzaW11bGF0aW9uQmVoYXZpb3IiOiJkZWZhdWx0IiwiaW5zdGFsbG1lbnRDcml0ZXJpYSI6Ik1BWF9XSVRIT1VUX0lOVEVSRVNUIiwicHJvZHVjdE9yaWdpblZ0ZXgiOmZhbHNlLCJtYXAiOiJzcGVjaWZpY2F0aW9uRmlsdGVyXzciLCJxdWVyeSI6Ik91dGxldCIsIm9yZGVyQnkiOiJPcmRlckJ5UmVsZWFzZURhdGVERVNDIiwiZnJvbSI6MCwidG8iOjMxLCJzZWxlY3RlZEZhY2V0cyI6W3sia2V5Ijoic3BlY2lmaWNhdGlvbkZpbHRlcl83IiwidmFsdWUiOiJPdXRsZXQifV0sImZhY2V0c0JlaGF2aW9yIjoiU3RhdGljIiwid2l0aEZhY2V0cyI6ZmFsc2UsImFkdmVydGlzZW1lbnRPcHRpb25zIjp7InNob3dTcG9uc29yZWQiOnRydWUsInNwb25zb3JlZENvdW50IjozLCJhZHZlcnRpc2VtZW50UGxhY2VtZW50IjoidG9wX3NlYXJjaCIsInJlcGVhdFNwb25zb3JlZFByb2R1Y3RzIjp0cnVlfX0="
+            "eyJoaWRlVW5hdmFpbGFibGVJdGVtcyI6dHJ1ZSwic2t1c0ZpbHRlciI6IkFMTF9BVkFJTEFCTEUiLCJzaW11bGF0aW9uQmVoYXZpb3IiOiJkZWZhdWx0IiwiaW5zdGFsbG1lbnRDcml0ZXJpYSI6Ik1BWF9XSVRIT1VUX0lOVEVSRVNUIiwicHJvZHVjdE9yaWdpblZ0ZXgiOmZhbHNlLCJtYXAiOiJzcGVjaWZpY2F0aW9uRmlsdGVyXzciLCJxdWVyeSI6Ik91dGxldCIsIm9yZGVyQnkiOiJPcmRlckJ5QmVzdERpc2NvdW50REVTQyIsImZyb20iOjAsInRvIjozMSwic2VsZWN0ZWRGYWNldHMiOlt7ImtleSI6InNwZWNpZmljYXRpb25GaWx0ZXJfNyIsInZhbHVlIjoiT3V0bGV0In1dLCJmYWNldHNCZWhhdmlvciI6IlN0YXRpYyIsIndpdGhGYWNldHMiOmZhbHNlLCJhZHZlcnRpc2VtZW50T3B0aW9ucyI6eyJzaG93U3BvbnNvcmVkIjp0cnVlLCJzcG9uc29yZWRDb3VudCI6MywiYWR2ZXJ0aXNlbWVudFBsYWNlbWVudCI6InRvcF9zZWFyY2giLCJyZXBlYXRTcG9uc29yZWRQcm9kdWN0cyI6dHJ1ZX19"
         ]
         self.headers = {
-            "accept": "application/json",
-            "content-type": "application/json",
-            "referer": "https://www.artwalk.com.br/outlet",
-            "sec-ch-ua": '"Not A(Brand";v="8", "Chromium";v="132", "Google Chrome";v="132"',
-            "sec-ch-ua-mobile": "?0",
-            "sec-ch-ua-platform": '"Windows"',
-            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36"
+            'Sec-Ch-Ua-Platform': '"macOS"',
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, como Gecko) Chrome/131.0.0.0 Safari/537.36',
+            'Accept': '/',
+            'Sec-Ch-Ua': '"Chromium";v="131", "Not_A Brand";v="24"',
+            'Content-Type': 'application/json',
+            'Dnt': '1',
+            'Sec-Ch-Ua-Mobile': '?0',
+            'Sec-Fetch-Site': 'same-origin',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Dest': 'empty',
+            'Referer': f'https://www.artwalk.com.br/outlet',
+            'Accept-Encoding': 'gzip, deflate, br, zstd',
+            'Accept-Language': 'pt-BR,pt;q=0.9',
+            'Priority': 'u=1, i'
         }
         self.items_per_page = 50
         self.db_manager = DatabaseManager()
@@ -83,6 +92,7 @@ class ArtWalkMonitor:
         }
 
     async def fetch_page(self, variables):
+
         url = f"{self.base_url}"
         params = {
             "workspace": "master",
@@ -90,6 +100,7 @@ class ArtWalkMonitor:
             "appsEtag": "remove",
             "domain": "store",
             "locale": "pt-BR",
+            "__bindingId": "4336af1a-ee4d-4b53-b2b2-7a69928d1c84",
             "operationName": "productSearchV3",
             "variables": "{}",
             "extensions": json.dumps({
@@ -99,7 +110,7 @@ class ArtWalkMonitor:
                     "sender": "vtex.store-resources@0.x",
                     "provider": "vtex.search-graphql@0.x"
                 },
-                "variables": variables
+                "variables": variables,
             })
         }
         try:
@@ -151,41 +162,45 @@ class ArtWalkMonitor:
             logging.error(f"Erro ao enviar webhook: {response.status_code}")
 
     async def monitor_pages(self):
-        while True:
-            for encoded_variable in self.variables:
-                page = 0
-                while True:
-                    start = page * self.items_per_page
-                    end = start + self.items_per_page - 1
-                    modified_variable = decode_and_modify_variables(encoded_variable, start, end)
-                    
-                    data = await self.fetch_page(modified_variable)
-                    if data and 'data' in data and 'productSearch' in data['data'] and 'products' in data['data']['productSearch']:
-                        products = data['data']['productSearch']['products']
-                        if not products:
-                            break
-                        
+        semaphore = asyncio.Semaphore(20)  # Controla concorrência
+        total_products = 0  # Contador de produtos
+        start_time = time.perf_counter()  # Marca o tempo inicial
+
+        async def process_page(encoded_var, page):
+            nonlocal total_products
+            async with semaphore:
+                start = page * self.items_per_page
+                end = start + self.items_per_page - 1
+                modified_var = decode_and_modify_variables(encoded_var, start, end)
+
+                data = await self.fetch_page(modified_var)
+                if data and 'data' in data and 'productSearch' in data['data'] and 'products' in data['data']['productSearch']:
+                    products = data['data']['productSearch']['products']
+                    if products:
+                        total_products += len(products)  # Incrementa o contador
                         for product in products:
                             try:
                                 produto_id = product['productId']
                                 nome = product['productName']
                                 link = f"https://www.artwalk.com.br{product['link']}"
-                                
+
                                 list_price_high = product['priceRange']['listPrice']['highPrice']
                                 selling_price_low = product['priceRange']['sellingPrice']['lowPrice']
-                                
+
                                 for item in product['items']:
                                     item_id = item['itemId']
                                     nome_completo = item['nameComplete']
                                     ean = item['ean']
-                                    
                                     tamanho = nome_completo.split()[-1]
-                                    
-                                    desconto_percentual = ((list_price_high - selling_price_low) / list_price_high) * 100
-                                    
+
+                                    if list_price_high is not None and selling_price_low is not None:
+                                        desconto_percentual = ((list_price_high - selling_price_low) / list_price_high) * 100
+                                    else:
+                                        desconto_percentual = 0  # Ou outra lógica adequada
+
                                     self.db_manager.cursor.execute("SELECT * FROM products WHERE produto_id = ? AND item_id = ?", (produto_id, item_id))
                                     existing_product = self.db_manager.cursor.fetchone()
-                                    
+
                                     if existing_product:
                                         old_selling_price = existing_product[4]
                                         if selling_price_low != old_selling_price:
@@ -194,12 +209,10 @@ class ArtWalkMonitor:
                                                 link2 = f"https://www.artwalk.com.br/checkout/cart/add?sku={item_id}&qty=1&seller=1&sc=1"
                                                 self.enviar_webhook_discord(nome_completo, old_selling_price, selling_price_low, link, link2, desconto_percentual)
                                     else:
-                                        desconto_percentual = ((list_price_high - selling_price_low) / list_price_high) * 100
                                         if desconto_percentual >= 30:
                                             link2 = f"https://www.artwalk.com.br/checkout/cart/add?sku={item_id}&qty=1&seller=1&sc=1"
                                             self.enviar_webhook_discord(nome_completo, list_price_high, selling_price_low, link, link2, desconto_percentual, novo_produto=True)
 
-                                    
                                     product_data = {
                                         'produto_id': produto_id,
                                         'nome': nome,
@@ -212,23 +225,32 @@ class ArtWalkMonitor:
                                         'tamanho': tamanho
                                     }
                                     self.db_manager.insert_product(product_data)
-                                    
-                                    # print(f"Produto: {nome_completo}")
-                                    # print(f"Link: {link}")
-                                    # print(f"Preço de lista mais alto: {list_price_high}")
-                                    # print(f"Preço de venda mais baixo: {selling_price_low}")
-                                    # print(f"Desconto: {desconto_percentual:.2f}%")
-                                    # print(f"Tamanho: {tamanho}")
-                                    # print("---")
-                                
+
                             except Exception as e:
                                 logging.error(f"Erro ao processar produto: {e}")
-                    
-                    page += 1
-                    await asyncio.sleep(0.5)
-                
-            await asyncio.sleep(0.5)
-            print("Monitoramento finalizado: Iniciando novamente em 1 segundo")
+                        return True
+            return False
+
+        while True:
+            total_products = 0  # Reseta o contador antes do novo ciclo
+            start_time = time.perf_counter()  # Reinicia o cronômetro
+
+            for encoded_var in self.variables:
+                page = 0
+                while True:
+                    tasks = [process_page(encoded_var, page + i) for i in range(5)]
+                    results = await asyncio.gather(*tasks)
+
+                    if not any(results):  # Interrompe se nenhuma página retornar produtos
+                        break
+
+                    page += 5
+                    await asyncio.sleep(0.1)
+
+            elapsed_time = time.perf_counter() - start_time  # Tempo total de execução
+            print(f"Monitoramento finalizado: {total_products} produtos coletados em {elapsed_time:.2f} segundos.")
+
+            await asyncio.sleep(0.1)  # Espera antes de reiniciar
 
 async def monitor_artwalk():
     monitor = ArtWalkMonitor()

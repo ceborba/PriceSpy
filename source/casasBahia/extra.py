@@ -36,42 +36,49 @@ async def send_discord_notification(product, old_price, new_price, is_new_produc
     }
 
     try:
-        if is_new_product:
+        if is_new_product or (old_price == 0 and new_price > 0):
             webhook_url = webhooks["novos"]
-            desconto_percentual = 0
+            description = "Novo produto adicionado!" if is_new_product else "Produto voltou ao estoque!"
+            show_discount = False
         else:
+            if old_price <= 0:
+                return
+            
             desconto_percentual = ((old_price - new_price) / old_price) * 100
             if 1 <= desconto_percentual <= 100:
                 webhook_url = webhooks["1-100"]
+                description = f"Desconto de {desconto_percentual:.2f}%"
+                show_discount = True
             else:
-                return  # Não enviar notificação se não se encaixar em nenhuma categoria
+                return
 
-        webhook = DiscordWebhook(url=webhook_url)
         embed = DiscordEmbed(
             title=product['name'],
-            description="Alteração de preço detectada!" if not is_new_product else "Novo produto adicionado!",
+            description=description,
             color='03b2f8'
         )
         
-        if not is_new_product:
+        if not is_new_product and old_price > 0:
             embed.add_embed_field(name="Preço Antigo", value=f"R$ {old_price:.2f}")
+        
         embed.add_embed_field(name="Novo Preço", value=f"R$ {new_price:.2f}")
         
-        if not is_new_product:
+        if show_discount:
             embed.add_embed_field(name="Desconto", value=f"{desconto_percentual:.2f}%")
         
         embed.add_embed_field(name="Loja", value="Extra")
         embed.add_embed_field(name="Link do Produto", value=f"[Clique aqui]({product['url']})")
-        
+
+        webhook = DiscordWebhook(url=webhook_url)
         webhook.add_embed(embed)
         response = await webhook.execute()
         if response.status_code == 200:
-            logging.info(f"Webhook enviado: {product['name']} - Novo preço: R$ {new_price:.2f}" + 
-                         (f" - Desconto: {desconto_percentual:.2f}%" if not is_new_product else ""))
+            logging.info(f"Notificação enviada: {product['name']}")
         else:
-            logging.error(f"Erro ao enviar webhook: {response.status_code}")
+            logging.error(f"Erro no webhook: {response.status_code}")
     except Exception as e:
-        logging.error(f"Erro ao enviar webhook: {str(e)}")
+        logging.error(f"Erro na notificação: {str(e)}")
+
 
 # Modifique a função insert_produto para verificar alterações de preço
 def insert_produto(id, name, url, sku, preco):
@@ -84,23 +91,27 @@ def insert_produto(id, name, url, sku, preco):
     if existing_product:
         old_price = existing_product[0]
         if preco != old_price:
+            is_restock = (old_price == 0 and preco > 0)
             c.execute('''UPDATE produtos SET preco = ? WHERE sku = ?''', (preco, sku))
             conn.commit()
-            logging.info(f"Preço atualizado para o produto: {name} (SKU: {sku})")
-            asyncio.create_task(send_discord_notification({
-                'name': name,
-                'url': url
-            }, old_price, preco, False))
+            logging.info(f"Atualização: {name}")
+            asyncio.create_task(send_discord_notification(
+                {'name': name, 'url': url}, 
+                old_price, 
+                preco, 
+                is_new_product=is_restock
+            ))
     else:
         c.execute('''INSERT INTO produtos (id, name, url, sku, preco)
                      VALUES (?, ?, ?, ?, ?)''', (id, name, url, sku, preco))
         conn.commit()
-        logging.info(f"Produto novo adicionado: {name} (SKU: {sku})")
-        asyncio.create_task(send_discord_notification({
-            'name': name,
-            'url': url
-        }, 0, preco, True))
-
+        logging.info(f"Novo produto: {name}")
+        asyncio.create_task(send_discord_notification(
+            {'name': name, 'url': url}, 
+            0, 
+            preco, 
+            is_new_product=True
+        ))
     conn.close()
 
 async def fetch_extra_data(session, page, max_retries=3, delay=1):
@@ -260,7 +271,7 @@ async def monitor_extra():
     create_table()  # Cria a tabela antes de iniciar o processo
     while True:
         await juntar_e_exibir_produtos_extra()
-        await asyncio.sleep(100)
+        await asyncio.sleep(120)
 
 
 if __name__ == "__main__":

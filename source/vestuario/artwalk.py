@@ -7,6 +7,7 @@ import logging
 from discord_webhook import DiscordWebhook, DiscordEmbed
 import base64
 import time
+import uuid
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -67,13 +68,20 @@ class ArtWalkMonitor:
             "eyJoaWRlVW5hdmFpbGFibGVJdGVtcyI6dHJ1ZSwic2t1c0ZpbHRlciI6IkFMTF9BVkFJTEFCTEUiLCJzaW11bGF0aW9uQmVoYXZpb3IiOiJkZWZhdWx0IiwiaW5zdGFsbG1lbnRDcml0ZXJpYSI6Ik1BWF9XSVRIT1VUX0lOVEVSRVNUIiwicHJvZHVjdE9yaWdpblZ0ZXgiOmZhbHNlLCJtYXAiOiJzcGVjaWZpY2F0aW9uRmlsdGVyXzciLCJxdWVyeSI6Ik91dGxldCIsIm9yZGVyQnkiOiJPcmRlckJ5QmVzdERpc2NvdW50REVTQyIsImZyb20iOjAsInRvIjozMSwic2VsZWN0ZWRGYWNldHMiOlt7ImtleSI6InNwZWNpZmljYXRpb25GaWx0ZXJfNyIsInZhbHVlIjoiT3V0bGV0In1dLCJmYWNldHNCZWhhdmlvciI6IlN0YXRpYyIsIndpdGhGYWNldHMiOmZhbHNlLCJhZHZlcnRpc2VtZW50T3B0aW9ucyI6eyJzaG93U3BvbnNvcmVkIjp0cnVlLCJzcG9uc29yZWRDb3VudCI6MywiYWR2ZXJ0aXNlbWVudFBsYWNlbWVudCI6InRvcF9zZWFyY2giLCJyZXBlYXRTcG9uc29yZWRQcm9kdWN0cyI6dHJ1ZX19"
         ]
         self.headers = {
-            "accept": "application/json",
-            "content-type": "application/json",
-            "referer": "https://www.artwalk.com.br/outlet",
-            "sec-ch-ua": '"Not A(Brand";v="8", "Chromium";v="132", "Google Chrome";v="132"',
-            "sec-ch-ua-mobile": "?0",
-            "sec-ch-ua-platform": '"Windows"',
-            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36"
+            'Sec-Ch-Ua-Platform': '"macOS"',
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, como Gecko) Chrome/131.0.0.0 Safari/537.36',
+            'Accept': '/',
+            'Sec-Ch-Ua': '"Chromium";v="131", "Not_A Brand";v="24"',
+            'Content-Type': 'application/json',
+            'Dnt': '1',
+            'Sec-Ch-Ua-Mobile': '?0',
+            'Sec-Fetch-Site': 'same-origin',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Dest': 'empty',
+            'Referer': f'https://www.artwalk.com.br/outlet',
+            'Accept-Encoding': 'gzip, deflate, br, zstd',
+            'Accept-Language': 'pt-BR,pt;q=0.9',
+            'Priority': 'u=1, i'
         }
         self.items_per_page = 50
         self.db_manager = DatabaseManager()
@@ -84,6 +92,7 @@ class ArtWalkMonitor:
         }
 
     async def fetch_page(self, variables):
+
         url = f"{self.base_url}"
         params = {
             "workspace": "master",
@@ -101,7 +110,7 @@ class ArtWalkMonitor:
                     "sender": "vtex.store-resources@0.x",
                     "provider": "vtex.search-graphql@0.x"
                 },
-                "variables": variables
+                "variables": variables,
             })
         }
         try:
